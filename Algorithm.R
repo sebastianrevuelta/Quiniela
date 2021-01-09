@@ -56,8 +56,8 @@ getResults <- function(category,jornada,totalTeams,local_coef,racha_coef,diff,ra
         getPrevision(dfClassification) %>%
         mutate("GoalTeam1" = round((Team1_totalGoalsExpectedToScore+Team2_totalGoalsExpectedToReceive/2),digits=2)) %>%
         mutate("GoalTeam2" = round((Team2_totalGoalsExpectedToScore+Team1_totalGoalsExpectedToReceive/2),digits=2)) %>%
-        mutate("FinalGoal1"    = round((((GoalTeam1*local_coef)+(Team1_scoreRacha*racha_coef))/(racha_coef+local_coef))-1*rest_factor*as.numeric(PlayDuringWeek1),digits=2)) %>%
-        mutate("FinalGoal2"    = round((((GoalTeam2*local_coef)+(Team2_scoreRacha*racha_coef))/(racha_coef+local_coef))-1*rest_factor*as.numeric(PlayDuringWeek2),digits=2)) %>%
+        mutate("FinalGoal1"    = round((((GoalTeam1*local_coef)+(Team1_scoreRacha*racha_coef))/(racha_coef+local_coef))-1*rest_factor*as.numeric(as.logical(PlayDuringWeek1)),digits=2)) %>%
+        mutate("FinalGoal2"    = round((((GoalTeam2*local_coef)+(Team2_scoreRacha*racha_coef))/(racha_coef+local_coef))-1*rest_factor*as.numeric(as.logical(PlayDuringWeek2)),digits=2)) %>%
         mutate("FinalGoal1"  = case_when(
             FinalGoal1 < 0 ~ 0,
             TRUE ~ FinalGoal1)) %>%
@@ -89,11 +89,20 @@ getClassification <- function(category,jornada) {
         
         ## The 4th table is the classification
         dfClassification <- table[[4]] %>%
-            html_table(fill = TRUE)
+            html_table(fill = TRUE) 
+        
+        dfClassification <- dfClassification[-1,]
         
         colnames(dfClassification) <- c("Pos","Team","Points","PJT","PGT","PET","PPT",
                                         "GFT","GCT","PJC","PGC","PEC","PPC","GFC","GCC",
                                         "PJF","PGF","PEF","PPF","GFF","GCF")
+        dfClassification$Pos <- c(1:nrow(dfClassification))
+        
+        cols.num <- c("Pos","Points","PJT","PGT","PET","PPT",
+                      "GFT","GCT","PJC","PGC","PEC","PPC","GFC","GCC",
+                      "PJF","PGF","PEF","PPF","GFF","GCF")
+        dfClassification[cols.num] <- sapply(dfClassification[cols.num],as.numeric)
+
         write_rds(dfClassification,path = paste0("dfClassification",category,jornada,".rds"))
     }
     dfClassification
@@ -107,12 +116,13 @@ getQuiniela <- function(jornada,category) {
         html_nodes(".tablaresultados") %>%
         html_children()
     dfQuiniela <- table[[1]] %>%
-        html_table(fill = TRUE)
-    
+        html_table(fill = TRUE) 
+
     colnames(dfQuiniela) <- c("Match","Team1","Team2","col1","colX","col2")
     
     dfQuiniela <- dfQuiniela %>%
-        slice(seq(from = 1, to = 30,by = 2)) %>%
+      #select(c("Match","Team1","Team2","col1","colX","col2")) %>%
+        #slice(seq(from = 1, to = 30,by = 2)) %>%
         select(Team1,Team2,"col1","colX","col2") %>%
         mutate("1X2" = paste0(col1,colX,col2)) %>%
         select(Team1,Team2,"1X2") 
@@ -136,7 +146,7 @@ getMatches <- function(category,jornada,totalTeams,download) {
         table <- html %>%
             html_nodes(".tablaresultados") %>%
             html_children()
-        dfMatches <- table[[jornada]] %>%
+        dfMatches <- table[[(jornada-1)*2]] %>%
             html_table(fill = TRUE)
         
         colnames(dfMatches) <- c("drop1","Team1","result","Team2","drop2")
