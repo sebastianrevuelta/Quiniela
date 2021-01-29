@@ -146,7 +146,7 @@ getMatches <- function(category,jornada,totalTeams,download) {
         table <- html %>%
             html_nodes(".tablaresultados") %>%
             html_children()
-        dfMatches <- table[[(jornada-1)*2]] %>%
+        dfMatches <- table[[(jornada)*2]] %>%
             html_table(fill = TRUE)
         
         colnames(dfMatches) <- c("drop1","Team1","result","Team2","drop2")
@@ -280,6 +280,7 @@ getAciertosQuiniela <- function(dfQuiniela,dfPronostico) {
         }
         rowPronostico <- dfPronostico[which(dfPronostico$Team1==team1 | dfPronostico$Team2==team2),]
         resulPronostico <- rowPronostico$"1X2"
+
         dfQuiniela[i,]$Pronostico <- resulPronostico
         
         if (i == 15) { ## Pleno al 15
