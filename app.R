@@ -5,7 +5,8 @@ library(shinyjs)
 library(DT)
 library(dplyr)
 library(ggplot2)
-library(tidyquant)
+library(lubridate)
+##library(tidyquant)
 library(modeest)
 
 x <- "fa\xE7ile"

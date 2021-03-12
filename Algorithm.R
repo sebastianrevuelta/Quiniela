@@ -265,7 +265,7 @@ getAciertos <- function(dfQuiniela,dfPronostico) {
 }
 getAciertosQuiniela <- function(dfQuiniela,dfPronostico) {
     
-    dfQuiniela$Pronostico <- 0
+    dfQuiniela$Pronostico <- "X"
     dfQuiniela$OK <- 0
     nAciertos <- 0
     
@@ -277,6 +277,7 @@ getAciertosQuiniela <- function(dfQuiniela,dfPronostico) {
 
         if (nrow(dfPronostico[which(dfPronostico$Team1==team1 | dfPronostico$Team2==team2),]) == 0) {
             print(paste(team1,team2))
+            print(dfPronostico)
         }
         rowPronostico <- dfPronostico[which(dfPronostico$Team1==team1 | dfPronostico$Team2==team2),]
         resulPronostico <- rowPronostico$"1X2"
@@ -347,6 +348,15 @@ convertNames <- function(df) {
         mutate(Team1 = case_when(
             Team1 == "At. Madrid" ~ "Atletico de Madrid",
             TRUE ~ Team1)) %>% 
+        mutate(Team1 = case_when(
+          Team1 == "Sporting" ~ "Sporting de Gijon",
+          TRUE ~ Team1)) %>% 
+        mutate(Team1 = case_when(
+          Team1 == "Cartagena" ~ "FC Cartagena",
+           TRUE ~ Team1)) %>% 
+       mutate(Team1 = case_when(
+           Team1 == "Celta" ~ "Celta de Vigo",
+           TRUE ~ Team1)) %>% 
         mutate(Team2 = case_when(
             Team2 == "Zaragoza" ~ "Real Zaragoza",
             TRUE ~ Team2)) %>%
@@ -382,7 +392,16 @@ convertNames <- function(df) {
             TRUE ~ Team2)) %>%
         mutate(Team2 = case_when(
             Team2 == "At. Madrid" ~ "Atletico de Madrid",
-            TRUE ~ Team2)) 
+            TRUE ~ Team2)) %>%     
+        mutate(Team2 = case_when(
+              Team2 == "Celta" ~ "Celta de Vigo",
+              TRUE ~ Team2)) %>%  
+        mutate(Team2 = case_when(
+            Team2 == "Sporting" ~ "Sporting de Gijon",
+            TRUE ~ Team2)) %>% 
+        mutate(Team2 = case_when(
+          Team2 == "Cartagena" ~ "FC Cartagena",
+          TRUE ~ Team2)) 
     
     # [1] "Not found Granada Levante"
     # [1] "Not found Ath.Bilbao Eibar"
