@@ -7,7 +7,7 @@ library(readr)
 
 #setwd("C:/Users/srevuelta/OneDrive/Documentos/BusinessIntelligence/Quiniela")
 
-getdfEvol <- function(local_weight,racha_weight,diff,racha_back,rest_factor) {
+getdfEvol <- function(local_weight,racha_weight,diff,racha_back,rest_factor,injury_factor) {
     evolutionNames <- c("Date","Aciertos")
     dfEvol <- data.frame(matrix(ncol = length(evolutionNames)))
     colnames(dfEvol) <- evolutionNames
@@ -16,7 +16,7 @@ getdfEvol <- function(local_weight,racha_weight,diff,racha_back,rest_factor) {
         if (as.Date(date,format = "%d-%m-%Y") < today()) {
           dfEvol[i,]$Date <- date
           dfEvol[i,]$Aciertos <- fillAciertos(date,local_weight,
-                                            racha_weight,diff,racha_back,rest_factor)
+                                            racha_weight,diff,racha_back,rest_factor,injury_factor)
         }
     }
     dfEvol$Date <- as.Date(dfEvol$Date,format = "%d-%m-%Y")
@@ -27,18 +27,18 @@ isDefaultValues <- function(input) {
     FALSE ##TODO...
     
 }
-fillAciertos <- function(selected_date,local_weight,racha_weight,diff,racha_back,rest_factor) {
+fillAciertos <- function(selected_date,local_weight,racha_weight,diff,racha_back,rest_factor,injury_factor) {
     
     pos <- match(as.character(selected_date),jornadas_date[[4]])
     jp <- jornadas_date[[1]][[pos]]
     js <- jornadas_date[[2]][[pos]]
 
-    dfPrimera <- getDFPronostico("primera",jp,10,local_weight,racha_weight,diff,racha_back,rest_factor) 
-    dfSegunda <- getDFPronostico("segunda",js,11,local_weight,racha_weight,diff,racha_back,rest_factor) 
+    dfPrimera <- getDFPronostico("primera",jp,10,local_weight,racha_weight,diff,racha_back,rest_factor,injury_factor) 
+    dfSegunda <- getDFPronostico("segunda",js,11,local_weight,racha_weight,diff,racha_back,rest_factor,injury_factor)
     dfPronosticos <- rbind(dfPrimera,dfSegunda)
     
     jq <- getJornadaQuiniela(selected_date,jornadas_date)
-    dfQuiniela <- getQuiniela(jq) 
+    dfQuiniela <- getQuinielaCombinacionGanadora(jq) 
     dfQuiniela <- dfQuiniela %>%
         convertNames()
     
@@ -46,10 +46,10 @@ fillAciertos <- function(selected_date,local_weight,racha_weight,diff,racha_back
     sum(df$OK)
 
 }
-getPronostico <- function(jp,js,local_coef,racha_coef,diff,racha_back,rest_factor) {
+getPronostico <- function(jp,js,local_coef,racha_coef,diff,racha_back,rest_factor,injury_factor) {
     
-    a <- getResults("primera",jp,10,local_coef,racha_coef,diff,racha_back,rest_factor)
-    b <- getResults("segunda",js,11,local_coef,racha_coef,diff,racha_back,rest_factor)
+    a <- getResults("primera",jp,10,local_coef,racha_coef,diff,racha_back,rest_factor,injury_factor)
+    b <- getResults("segunda",js,11,local_coef,racha_coef,diff,racha_back,rest_factor,injury_factor)
     
     rbind(a,b)
     
@@ -61,7 +61,12 @@ getBestValue <- function(df,var) {
     df3 <- df2 %>%
       arrange(-ATot)
     
-    df3[1,][[var]]
+    value <- df3[1,][[var]]
+    if (is.null(value)) {
+      value <- 1
+    }
+      
+    value
     
 }
 
@@ -87,7 +92,7 @@ generateBestValues <- function(){
             jp <- jornadas_date$JPri[i]
             js <- jornadas_date$JSeg[i]
             jq <- jornadas_date$JQ[i]
-            dfQuiniela <- getQuiniela(jq) 
+            dfQuiniela <- getQuinielaCombinacionGanadora(jq) 
             dfQuiniela <- dfQuiniela %>%
                 convertNames()
             print(paste("Calculating OK for","jornada",jp))

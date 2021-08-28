@@ -1,4 +1,4 @@
-getResults <- function(category,jornada,totalTeams,local_coef,racha_coef,diff,racha_back,rest_factor) {
+getResults <- function(category,jornada,totalTeams,local_coef,racha_coef,diff,racha_back,rest_factor,injury_factor) {
     
     ## get classification ----
     dfClassification <- getClassification(category,jornada)
@@ -10,9 +10,18 @@ getResults <- function(category,jornada,totalTeams,local_coef,racha_coef,diff,ra
     colnames(dfNewColumns) <- c("Team1_totalGoalsExpectedToScore","Team1_totalGoalsExpectedToReceive",
                                 "Team2_totalGoalsExpectedToScore","Team2_totalGoalsExpectedToReceive",
                                 "Team1_scoreRacha","Team2_scoreRacha")
+                                #"Team1_injuryScore","Team2_injuryScore")
     
     dfMatchesResult <- cbind(dfMatches,dfNewColumns) 
-
+    dfMatchesResult$Team1_totalGoalsExpectedToScore <- 0
+    dfMatchesResult$Team1_totalGoalsExpectedToReceive <- 0
+    dfMatchesResult$Team2_totalGoalsExpectedToScore <- 0
+    dfMatchesResult$Team2_totalGoalsExpectedToReceive <- 0
+    dfMatchesResult$Team1_scoreRacha <- 0
+    dfMatchesResult$Team2_scoreRacha <- 0
+    #dfMatchesResult$Team1_injuryScore <- 0
+    #dfMatchesResult$Team2_injuryScore <- 0
+    
     if (category == "primera") {
         rest_info1 <- rest_info %>% 
             filter(JPri == jornada) %>%
@@ -25,7 +34,6 @@ getResults <- function(category,jornada,totalTeams,local_coef,racha_coef,diff,ra
             rename("Team2" = "Team") %>%
             rename("PlayDuringWeek2" = "PlayDuringWeek") %>%
             select(Team2,PlayDuringWeek2)
-        
     }
     if (category == "segunda") {
         rest_info1 <- rest_info %>% 
@@ -39,7 +47,6 @@ getResults <- function(category,jornada,totalTeams,local_coef,racha_coef,diff,ra
             rename("Team2" = "Team") %>%
             rename("PlayDuringWeek2" = "PlayDuringWeek") %>%
             select(Team2,PlayDuringWeek2)
-
     }
     
     dfMatchesResult <- plyr::join(dfMatchesResult,rest_info1,by=c("Team1"),match="all")
@@ -52,12 +59,17 @@ getResults <- function(category,jornada,totalTeams,local_coef,racha_coef,diff,ra
     }
     
     summary <- dfMatchesResult %>%
+        getInjuries() %>%
         getRacha(category,jornada,totalTeams,racha_back) %>%
         getPrevision(dfClassification) %>%
         mutate("GoalTeam1" = round((Team1_totalGoalsExpectedToScore+Team2_totalGoalsExpectedToReceive/2),digits=2)) %>%
         mutate("GoalTeam2" = round((Team2_totalGoalsExpectedToScore+Team1_totalGoalsExpectedToReceive/2),digits=2)) %>%
-        mutate("FinalGoal1"    = round((((GoalTeam1*local_coef)+(Team1_scoreRacha*racha_coef))/(racha_coef+local_coef))-1*rest_factor*as.numeric(as.logical(PlayDuringWeek1)),digits=2)) %>%
-        mutate("FinalGoal2"    = round((((GoalTeam2*local_coef)+(Team2_scoreRacha*racha_coef))/(racha_coef+local_coef))-1*rest_factor*as.numeric(as.logical(PlayDuringWeek2)),digits=2)) %>%
+        mutate("FinalGoal1"    = round((((GoalTeam1*local_coef)+(Team1_scoreRacha*racha_coef))/(racha_coef+local_coef))-
+                                         1*rest_factor*as.numeric(as.logical(PlayDuringWeek1))-
+                                         injury_factor*Team1_injuryScore,digits=2)) %>%
+        mutate("FinalGoal2"    = round((((GoalTeam2*local_coef)+(Team2_scoreRacha*racha_coef))/(racha_coef+local_coef))-
+                                         1*rest_factor*as.numeric(as.logical(PlayDuringWeek2))-
+                                         injury_factor*Team2_injuryScore,digits=2)) %>%
         mutate("FinalGoal1"  = case_when(
             FinalGoal1 < 0 ~ 0,
             TRUE ~ FinalGoal1)) %>%
@@ -69,7 +81,8 @@ getResults <- function(category,jornada,totalTeams,local_coef,racha_coef,diff,ra
             Difference >= diff ~ "1",
             Difference < diff & Difference > -diff ~ "X",
             TRUE ~ "2")) %>%
-        select(Team1,Team2,GoalTeam1,GoalTeam2,Team1_scoreRacha,Team2_scoreRacha,FinalGoal1,FinalGoal2,Difference,Quiniela)    
+        select(Team1,Team2,GoalTeam1,GoalTeam2,Team1_scoreRacha,Team2_scoreRacha,FinalGoal1,FinalGoal2,Team1_injuryScore,Team2_injuryScore,Difference,Quiniela)    
+    
     
     summary
 }
@@ -87,8 +100,9 @@ getClassification <- function(category,jornada) {
             html_nodes(".tablaresultados") %>%
             html_children()
         
-        ## The 4th table is the classification
-        dfClassification <- table[[4]] %>%
+        lastChild <- length(table)
+        ## The last table is the classification
+        dfClassification <- table[[lastChild]] %>%
             html_table(fill = TRUE) 
         
         dfClassification <- dfClassification[-1,]
@@ -109,6 +123,31 @@ getClassification <- function(category,jornada) {
     
 }
 
+getQuinielaCombinacionGanadora <- function(jornada,category) {
+  
+  url_classification <- str_glue("https://www.combinacionganadora.com/quiniela/2021-2022/jornada-",{jornada})
+  html <- read_html(url_classification)
+  table <- html %>%
+    html_nodes(".matchTable") %>%
+    html_children()
+  
+  dfQuiniela <- table[[2]] %>%
+    html_table(fill = TRUE) %>%
+    mutate("X9" = case_when(
+      X4 > X6 ~ "1",
+      X6 > X4 ~ "2",
+      TRUE ~ "X"))
+  dfQuiniela[15,]$X9 <- paste(dfQuiniela[15,]$X4,"-",dfQuiniela[15,]$X6)
+  dfQuiniela[15,]$X9 <- str_replace_all(dfQuiniela[15,]$X9 , fixed(" "), "")
+  
+  colnames(dfQuiniela) <- c("Match","Team1","X3","X4","X5","X6","X7","Team2","1X2")
+  
+  dfQuiniela <- dfQuiniela %>%
+    select(Team1,Team2,"1X2") %>%
+    select(Team1,Team2,"1X2") 
+  
+}
+
 getQuiniela <- function(jornada,category) {
     url_quiniela <- paste0("https://www.superdeporte.es/deportes/futbol/quiniela/resultados-quiniela-jornada-",jornada,".html")
     html <- read_html(url_quiniela)
@@ -121,8 +160,6 @@ getQuiniela <- function(jornada,category) {
     colnames(dfQuiniela) <- c("Match","Team1","Team2","col1","colX","col2")
     
     dfQuiniela <- dfQuiniela %>%
-      #select(c("Match","Team1","Team2","col1","colX","col2")) %>%
-        #slice(seq(from = 1, to = 30,by = 2)) %>%
         select(Team1,Team2,"col1","colX","col2") %>%
         mutate("1X2" = paste0(col1,colX,col2)) %>%
         select(Team1,Team2,"1X2") 
@@ -205,10 +242,13 @@ getLastMatches <- function(category,jornada,totalTeams,racha_back) {
 
     back <- jornada-racha_back
     
-    for (j in back:jornada-1) {
-
-        dfMatches <- getMatches(category,j,totalTeams,FALSE)
-        dfMatchesGlobal <- rbind(dfMatchesGlobal,dfMatches)
+    if (back > 0) {
+      for (j in back:jornada-1) {
+        if (j > 0) {
+          dfMatches <- getMatches(category,j,totalTeams,FALSE)
+          dfMatchesGlobal <- rbind(dfMatchesGlobal,dfMatches)
+        }
+      }
     }
     dfMatchesGlobal
 }
@@ -240,7 +280,10 @@ getPrevision <- function(data,dfClassification) {
         data[i,]$"Team2_totalGoalsExpectedToScore" <- totalGoalsExpectedToScore
         data[i,]$"Team2_totalGoalsExpectedToReceive" <- totalGoalsExpectedToReceive
     }
-    
+    data[which(is.na(data$Team1_totalGoalsExpectedToScore)),]$Team1_totalGoalsExpectedToScore <- 0
+    data[which(is.na(data$Team1_totalGoalsExpectedToReceive)),]$Team1_totalGoalsExpectedToReceive <- 0
+    data[which(is.na(data$Team2_totalGoalsExpectedToScore)),]$Team2_totalGoalsExpectedToScore <- 0
+    data[which(is.na(data$Team2_totalGoalsExpectedToReceive)),]$Team2_totalGoalsExpectedToReceive <- 0
     return(data)
 }
 
@@ -278,10 +321,12 @@ getAciertosQuiniela <- function(dfQuiniela,dfPronostico) {
         if (nrow(dfPronostico[which(dfPronostico$Team1==team1 | dfPronostico$Team2==team2),]) == 0) {
             print(paste(team1,team2))
             print(dfPronostico)
+            resulPronostico <- "X"
         }
-        rowPronostico <- dfPronostico[which(dfPronostico$Team1==team1 | dfPronostico$Team2==team2),]
-        resulPronostico <- rowPronostico$"1X2"
-
+        else {
+          rowPronostico <- dfPronostico[which(dfPronostico$Team1==team1 | dfPronostico$Team2==team2),]
+          resulPronostico <- rowPronostico$"1X2"
+        }
         dfQuiniela[i,]$Pronostico <- resulPronostico
         
         if (i == 15) { ## Pleno al 15
@@ -296,6 +341,10 @@ getAciertosQuiniela <- function(dfQuiniela,dfPronostico) {
             dfQuiniela[i,]$Pronostico <- paste0(gol1,"-",gol2)
         }
         
+        print(dfQuiniela[15,]$Pronostico)
+        print(resulPronostico)
+        print(result)
+        dfQuiniela[15,]$"1X2"
         if (length(resulPronostico) > 0) {
             if (result == resulPronostico) {
                 nAciertos <- nAciertos + 1
@@ -415,12 +464,12 @@ convertNames <- function(df) {
     # [1] "Not found At. Madrid Osasuna"
 
 }
-getDFPronostico <- function(category,jornada,totalTeams,local_weight,racha_weight,diff,racha_back,rest_factor) {
+getDFPronostico <- function(category,jornada,totalTeams,local_weight,racha_weight,diff,racha_back,rest_factor,injury_factor) {
     
-    getResults(category,jornada,totalTeams,local_weight,racha_weight,diff,racha_back,rest_factor)  %>%
+    getResults(category,jornada,totalTeams,local_weight,racha_weight,diff,racha_back,rest_factor,injury_factor)  %>%
         mutate(FinalGoal1 = round(FinalGoal1,digits = 2))  %>%
         mutate(FinalGoal2 = round(FinalGoal2,digits = 2))  %>%
-        select(Team1,Team2,FinalGoal1,FinalGoal2,Quiniela) %>%
+        select(Team1,Team2,FinalGoal1,FinalGoal2,Team1_injuryScore,Team2_injuryScore,Quiniela) %>%
         rename("Gol1" = FinalGoal1) %>%
         rename("Gol2" = FinalGoal2) %>%
         rename("1X2"  = Quiniela) 

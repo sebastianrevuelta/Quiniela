@@ -1,3 +1,12 @@
+## TODO:
+## Historical classification instead rest factor
+## Texts in Spanish
+## Review performance
+## Consider comment with Kiko in September
+## Load only next date
+## ERROR: Error: Can't rename columns that don't exist.
+## x Column `Var1` doesn't exist. quiniela_distribution
+
 # 1. Load sources ----
 library(shiny)
 library(shinydashboard)
@@ -15,6 +24,7 @@ Encoding(x) <- "latin1"
 
 source('Quiniela.R')
 source('Algorithm.R')
+source('laligafantasy.R',encoding = "latin1", local = TRUE)
 
 #setwd("C:/Users/srevuelta/OneDrive/Documentos/BusinessIntelligence/Quiniela")
 bestValues <- read_rds("dfBestValues.rds")
@@ -22,13 +32,14 @@ localBestValue <- 1
 rachaBestValue <- getBestValue(bestValues,"RC")
 diffBestValue <-  getBestValue(bestValues,"DIFF")
 restBestValue <-  getBestValue(bestValues,"RF")
+injuryBestValue <- getBestValue(bestValues,"IN")
 rachaBackBestValue <-  round(getBestValue(bestValues,"RB"),digits = 0)
 jornadas_date <<- as.list(read_csv("Jornada.csv"))
 rest_info <<- as.data.frame(read_csv("Rest.csv"))
-first_list <- as.list(jornadas_date[[4]])[length(jornadas_date[[4]]):1]
-second_list <- seq(18,42,by=1)
+first_list <- as.list(jornadas_date[[4]])[1:length(jornadas_date[[4]])]
 jp <- jornadas_date[[1]][[length(jornadas_date[[4]])]]
 js <- jornadas_date[[2]][[length(jornadas_date[[4]])]]
+players_injured <<- as.data.frame(read_csv(str_glue("./laliga/players_jornada_",jp,".csv")))
 
 # 5. Header ----
 header <- dashboardHeader(title = "Quiniela predictor",dropdownMenuOutput("alertMenu"))
@@ -54,61 +65,55 @@ body <- dashboardBody(
                   valueBoxOutput("AciertosQuiniela", width = 2)
               ),
               fluidRow(
-                  h4(paste("Real Quiniela")),
+                  h4(paste("Quiniela")),
                   shinydashboard::box(DT::dataTableOutput('quiniela_table'))
               ),
               fluidRow(
-                  #valueBoxOutput("Local_BestValue", width = 2),
-                  #shinydashboard::box(sliderInput(inputId = "slider_local", label = "Factor Home/Visitor", min = 0, max = 1, value=localBestValue,step=0.1), width=2),
-                  #valueBoxOutput("Racha_BestValue", width = 2),
-                   shinydashboard::box(sliderInput(inputId = "slider_rest", label = "Rest days factor", min = 0, max = 1, value=restBestValue, step=0.2), width=2),
-                  #valueBoxOutput("Diff_BestValue", width = 2),
-                  shinydashboard::box(sliderInput(inputId = "slider_racha", label = "To be on a roll factor", min = 0, max = 1, value=rachaBestValue, step=0.2), width=2),
-                  shinydashboard::box(sliderInput(inputId = "slider_back", label = "Matches to consider back", min = 3, max = 6, value=rachaBackBestValue, step=1), width=2),
-                  shinydashboard::box(sliderInput(inputId = "slider_diff", label = "Diff to change signus", min = 0, max = 1, value=diffBestValue, step=0.2), width=2)
-                  #valueBoxOutput("RachaBack_BestValue", width = 2),
-
-                  
+                  shinydashboard::box(sliderInput(inputId = "slider_injury", label = "Factor Lesionados", min = 0, max = 1, value=injuryBestValue,step=0.2), width=2),
+                  shinydashboard::box(sliderInput(inputId = "slider_rest", label = "Factor Descanso", min = 0, max = 1, value=restBestValue, step=0.2), width=2),
+                  shinydashboard::box(sliderInput(inputId = "slider_racha", label = "Factor Racha", min = 0, max = 1, value=rachaBestValue, step=0.2), width=2),
+                  shinydashboard::box(sliderInput(inputId = "slider_back", label = "Partidos para racha", min = 3, max = 6, value=rachaBackBestValue, step=1), width=2),
+                  shinydashboard::box(sliderInput(inputId = "slider_diff", label = "Diferencia cambio signo", min = 0, max = 1, value=diffBestValue, step=0.2), width=2)
               ),
               fluidRow(
-                  h4(paste("Average success")),
+                  h4(paste("Media aciertos")),
                   valueBoxOutput("AciertosMediaQuiniela", width = 2)
               ),
               fluidRow(
-                  h4(paste("Evolution")),
+                  h4(paste("Tendencia aciertos")),
                   shinydashboard::box(plotOutput("quiniela_evolution"),width = 6)
               ),
               fluidRow(
-                  h4(paste("Tendency Distribution")),
+                  h4(paste("Tendencia signos")),
                   shinydashboard::box(plotOutput("quiniela_distribution"),width = 6)
               ),
               fluidRow(
-                  h4(paste("Current Distribution")),
+                  h4(paste("Distribucion signos")),
                   shinydashboard::box(plotOutput("quiniela_current_distribution"),width = 6)
               ),
               fluidRow(
-                h4(paste("First division prediction")),
+                h4(paste("Primera division prediccion")),
                 valueBoxOutput("AciertosPrimera", width = 2)
               ),
               fluidRow(
                  shinydashboard::box(DT::dataTableOutput('match_table_first'))
                 ),
               fluidRow(
-                  h4(paste("Second division prediction")),
+                  h4(paste("Segunda division prediccion")),
                   valueBoxOutput("AciertosSegunda", width = 2)
               ),
               fluidRow(
                   shinydashboard::box(DT::dataTableOutput('match_table_second'))
               ),
               fluidRow(
-                h4(paste("Detail prediction")),
+                h4(paste("Prediccion detallada")),
                 valueBoxOutput("AciertosTotales", width = 2)
               ),
               fluidRow(
                 shinydashboard::box(DT::dataTableOutput('match_table_details'))
                 ),
               fluidRow(
-                  h4(paste("Recommended values")),
+                  h4(paste("Valores recomendados")),
                   shinydashboard::box(DT::dataTableOutput('best_values'))
               )
   ))
@@ -127,7 +132,7 @@ server <- function(input, output, session) {
         js <- jornadas_date[[2]][[pos]]
 
         jq <- getJornadaQuiniela(input$jornada_primera,jornadas_date)
-        dfQuiniela <- getQuiniela(jq) 
+        dfQuiniela <- getQuinielaCombinacionGanadora(jq) 
         dfQuiniela <- dfQuiniela %>%
             convertNames()
         
@@ -141,9 +146,10 @@ server <- function(input, output, session) {
             diff <- input$slider_diff
             racha_back <- input$slider_back
             rest_factor <- input$slider_rest
+            injury_factor <- input$slider_injury
             
-            dfPrimera <- getDFPronostico("primera",jp,10,local_weight,racha_weight,diff,racha_back,rest_factor) 
-            dfSegunda <- getDFPronostico("segunda",js,11,local_weight,racha_weight,diff,racha_back,rest_factor) 
+            dfPrimera <- getDFPronostico("primera",jp,10,local_weight,racha_weight,diff,racha_back,rest_factor,injury_factor) 
+            dfSegunda <- getDFPronostico("segunda",js,11,local_weight,racha_weight,diff,racha_back,rest_factor,injury_factor) 
         }
         df <- getAciertos(dfQuiniela,rbind(dfPrimera,dfSegunda))
         
@@ -163,9 +169,10 @@ server <- function(input, output, session) {
           diff <- input$slider_diff
           racha_back <- input$slider_back
           rest_factor <- input$slider_rest
+          injury_factor <- input$slider_injury
 
-          dfPrimera <- getDFPronostico("primera",jp,10,local_weight,racha_weight,diff,racha_back,rest_factor) 
-          dfSegunda <- getDFPronostico("segunda",js,11,local_weight,racha_weight,diff,racha_back,rest_factor)
+          dfPrimera <- getDFPronostico("primera",jp,10,local_weight,racha_weight,diff,racha_back,rest_factor,injury_factor) 
+          dfSegunda <- getDFPronostico("segunda",js,11,local_weight,racha_weight,diff,racha_back,rest_factor,injury_factor)
           dfQuiniela1 <- getDFQuiniela("primera",jp,10,TRUE) 
           dfQuiniela2 <- getDFQuiniela("segunda",js,11,TRUE) 
           
@@ -190,8 +197,9 @@ server <- function(input, output, session) {
           diff <- input$slider_diff
           racha_back <- input$slider_back
           rest_factor <- input$slider_rest
+          injury_factor <- input$slider_injury
           
-          dfPrimera <- getDFPronostico("primera",jp,10,local_weight,racha_weight,diff,racha_back,rest_factor)
+          dfPrimera <- getDFPronostico("primera",jp,10,local_weight,racha_weight,diff,racha_back,rest_factor,injury_factor)
           dfQuiniela1 <- getDFQuiniela("primera",jp,10,TRUE) 
 
           df <- getAciertos(dfQuiniela1,dfPrimera)
@@ -213,8 +221,9 @@ server <- function(input, output, session) {
           diff <- input$slider_diff
           racha_back <- input$slider_back
           rest_factor <- input$slider_rest
+          injury_factor <- input$slider_injury
           
-          dfSegunda <- getDFPronostico("segunda",js,11,local_weight,racha_weight,diff,racha_back,rest_factor)
+          dfSegunda <- getDFPronostico("segunda",js,11,local_weight,racha_weight,diff,racha_back,rest_factor,injury_factor)
           dfQuiniela2 <- getDFQuiniela("segunda",js,11,TRUE) 
           df <- getAciertos(dfQuiniela2,dfSegunda)
 
@@ -234,13 +243,14 @@ server <- function(input, output, session) {
           diff <- input$slider_diff
           racha_back <- input$slider_back
           rest_factor <- input$slider_rest
+          injury_factor <- input$slider_injury
           
-          dfPrimera <- getDFPronostico("primera",jp,10,local_weight,racha_weight,diff,racha_back,rest_factor)
-          dfSegunda <- getDFPronostico("segunda",js,11,local_weight,racha_weight,diff,racha_back,rest_factor)
+          dfPrimera <- getDFPronostico("primera",jp,10,local_weight,racha_weight,diff,racha_back,rest_factor,injury_factor)
+          dfSegunda <- getDFPronostico("segunda",js,11,local_weight,racha_weight,diff,racha_back,rest_factor,injury_factor)
           dfPronosticos <- rbind(dfPrimera,dfSegunda)
           
           jq <- getJornadaQuiniela(input$jornada_primera,jornadas_date)
-          dfQuiniela <- getQuiniela(jq) 
+          dfQuiniela <- getQuinielaCombinacionGanadora(jq) 
           dfQuiniela <- dfQuiniela %>%
               convertNames()
           
@@ -267,8 +277,9 @@ server <- function(input, output, session) {
           diff <- input$slider_diff
           racha_back <- input$slider_back
           rest_factor <- input$slider_rest
+          injury_factor <- input$slider_injury
           
-          dfEvol <- getdfEvol(local_weight,racha_weight,diff,racha_back,rest_factor)
+          dfEvol <- getdfEvol(local_weight,racha_weight,diff,racha_back,rest_factor,injury_factor)
           dfEvol %>%
               filter(Date < as.Date(now())) %>%
               ggplot(aes(Date,Aciertos)) +
@@ -277,6 +288,7 @@ server <- function(input, output, session) {
               theme(axis.text.x = element_text(angle = 90, hjust = 1,size=14)) +
               geom_smooth(method = "lm", se = FALSE)
       })
+      
       output$quiniela_distribution <- renderPlot({
           
           df <- data.frame(matrix(nrow = 0, ncol = 3))
@@ -292,7 +304,7 @@ server <- function(input, output, session) {
                   counter <- counter + 1
                   jq <- jornadas_date$JQ[i]
 
-                  dfQuiniela <- getQuiniela(jq)
+                  dfQuiniela <- getQuinielaCombinacionGanadora(jq)
                   dfTotalQuiniela <- rbind(dfTotalQuiniela,dfQuiniela)
               }
           }
@@ -318,13 +330,14 @@ server <- function(input, output, session) {
           diff <- input$slider_diff
           racha_back <- input$slider_back
           rest_factor <- input$slider_rest
+          injury_factor <- input$slider_injury
           
-          dfPrimera <- getDFPronostico("primera",jp,10,local_weight,racha_weight,diff,racha_back,rest_factor)
-          dfSegunda <- getDFPronostico("segunda",js,11,local_weight,racha_weight,diff,racha_back,rest_factor)
+          dfPrimera <- getDFPronostico("primera",jp,10,local_weight,racha_weight,diff,racha_back,rest_factor,injury_factor)
+          dfSegunda <- getDFPronostico("segunda",js,11,local_weight,racha_weight,diff,racha_back,rest_factor,injury_factor)
           dfPronosticos <- rbind(dfPrimera,dfSegunda)
           
           jq <- getJornadaQuiniela(input$jornada_primera,jornadas_date)
-          dfQuiniela <- getQuiniela(jq) 
+          dfQuiniela <- getQuinielaCombinacionGanadora(jq) 
           dfQuiniela <- dfQuiniela %>%
               convertNames()
           
@@ -334,12 +347,9 @@ server <- function(input, output, session) {
           df %>% 
               rename("Signus" = Var1)  %>%
               filter(Signus == "1" | Signus == "2" | Signus == "X") %>%
-              #mutate(Freq = round(Freq/counter,digits = 2))  %>%
               ggplot(aes(Signus,Freq)) +
               geom_col(fill="green") +
               geom_label(aes(label = Freq))
-          
-          
           
       })
       output$AciertosMediaQuiniela <- renderValueBox({
@@ -353,8 +363,9 @@ server <- function(input, output, session) {
           diff <- input$slider_diff
           racha_back <- input$slider_back
           rest_factor <- input$slider_rest
+          injury_factor <- input$slider_injury
           
-          dfEvol <- getdfEvol(local_weight,racha_weight,diff,racha_back,rest_factor)
+          dfEvol <- getdfEvol(local_weight,racha_weight,diff,racha_back,rest_factor,injury_factor)
           n <- round(mean(dfEvol$Aciertos),digits = 2)
           valueBox(
               n, paste("Acierto Medio:",n,"de 15"), icon = icon("thumbs-up", lib = "glyphicon"),
@@ -373,8 +384,9 @@ server <- function(input, output, session) {
           diff <- input$slider_diff
           racha_back <- input$slider_back
           rest_factor <- input$slider_rest
+          injury_factor <- input$slider_injury
           
-          dfPrimera <- getDFPronostico("primera",jp,10,local_weight,racha_weight,diff,racha_back,rest_factor)
+          dfPrimera <- getDFPronostico("primera",jp,10,local_weight,racha_weight,diff,racha_back,rest_factor,injury_factor)
           dfQuiniela1 <- getDFQuiniela("primera",jp,10,TRUE) 
           
           df <- getAciertos(dfQuiniela1,dfPrimera)
@@ -397,8 +409,9 @@ server <- function(input, output, session) {
           diff <- input$slider_diff
           racha_back <- input$slider_back
           rest_factor <- input$slider_rest
+          injury_factor <- input$slider_injury
           
-          dfSegunda <- getDFPronostico("segunda",js,11,local_weight,racha_weight,diff,racha_back,rest_factor)
+          dfSegunda <- getDFPronostico("segunda",js,11,local_weight,racha_weight,diff,racha_back,rest_factor,injury_factor)
           dfQuiniela2 <- getDFQuiniela("segunda",js,11,TRUE) 
           df <- getAciertos(dfQuiniela2,dfSegunda)
           
@@ -420,8 +433,9 @@ server <- function(input, output, session) {
           diff <- input$slider_diff
           racha_back <- input$slider_back
           rest_factor <- input$slider_rest
+          injury_factor <- input$slider_injury
           
-          getPronostico(jp,js,local_weight,racha_weight,diff,racha_back,rest_factor) %>%
+          getPronostico(jp,js,local_weight,racha_weight,diff,racha_back,rest_factor,injury_factor) %>%
               datatable((options = list(pageLength = 21)))
       })
       
