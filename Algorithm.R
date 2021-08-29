@@ -89,7 +89,7 @@ getResults <- function(category,jornada,totalTeams,local_coef,racha_coef,diff,ra
 
 getClassification <- function(category,jornada) {
     
-    fileName <- paste0("dfClassification",category,jornada,".rds")
+    fileName <- paste0("clasificacion_",category,"_",jornada,".rds")
     if (file.exists(fileName)) {
         dfClassification <- read_rds(fileName)
     }
@@ -116,35 +116,23 @@ getClassification <- function(category,jornada) {
                       "GFT","GCT","PJC","PGC","PEC","PPC","GFC","GCC",
                       "PJF","PGF","PEF","PPF","GFF","GCF")
         dfClassification[cols.num] <- sapply(dfClassification[cols.num],as.numeric)
+        
+        dfClassification <- dfClassification %>%
+          mutate("Team" = case_when(
+            str_starts(Team,"Ala") ~ "Alaves",
+            str_starts(Team,"Atl") ~ "Atletico de Madrid",
+            str_ends(Team,"iz") ~ "Cadiz",
+            TRUE ~ Team)) 
 
-        write_rds(dfClassification,path = paste0("dfClassification",category,jornada,".rds"))
+        write_rds(dfClassification,path = paste0("clasificacion_",category,"_",jornada,".rds"))
     }
     dfClassification
     
 }
 
-getQuinielaCombinacionGanadora <- function(jornada,category) {
+getQuinielaCombinacionGanadora <- function(jornada) {
   
-  url_classification <- str_glue("https://www.combinacionganadora.com/quiniela/2021-2022/jornada-",{jornada})
-  html <- read_html(url_classification)
-  table <- html %>%
-    html_nodes(".matchTable") %>%
-    html_children()
-  
-  dfQuiniela <- table[[2]] %>%
-    html_table(fill = TRUE) %>%
-    mutate("X9" = case_when(
-      X4 > X6 ~ "1",
-      X6 > X4 ~ "2",
-      TRUE ~ "X"))
-  dfQuiniela[15,]$X9 <- paste(dfQuiniela[15,]$X4,"-",dfQuiniela[15,]$X6)
-  dfQuiniela[15,]$X9 <- str_replace_all(dfQuiniela[15,]$X9 , fixed(" "), "")
-  
-  colnames(dfQuiniela) <- c("Match","Team1","X3","X4","X5","X6","X7","Team2","1X2")
-  
-  dfQuiniela <- dfQuiniela %>%
-    select(Team1,Team2,"1X2") %>%
-    select(Team1,Team2,"1X2") 
+  read_rds(paste0("quiniela_jornada_",jornada,".rds"))
   
 }
 
@@ -259,7 +247,6 @@ getPrevision <- function(data,dfClassification) {
     for (i in 1:nrow(data)) {
         
         team1 <- (data[i,]$Team1)
-        
         totalGoalsScoredHome <- dfClassification[which(dfClassification$Team==team1),]$GFC
         totalGoalsReceivedHome <- dfClassification[which(dfClassification$Team==team1),]$GCC
         totalMatchesHome <- dfClassification[which(dfClassification$Team==team1),]$PJC
@@ -306,6 +293,7 @@ getAciertos <- function(dfQuiniela,dfPronostico) {
     
     dfPronostico
 }
+
 getAciertosQuiniela <- function(dfQuiniela,dfPronostico) {
     
     dfQuiniela$Pronostico <- "X"
@@ -319,17 +307,15 @@ getAciertosQuiniela <- function(dfQuiniela,dfPronostico) {
         result <- dfQuiniela[i,]$"1X2"
 
         if (nrow(dfPronostico[which(dfPronostico$Team1==team1 | dfPronostico$Team2==team2),]) == 0) {
-            print(paste(team1,team2))
-            print(dfPronostico)
             resulPronostico <- "X"
         }
         else {
           rowPronostico <- dfPronostico[which(dfPronostico$Team1==team1 | dfPronostico$Team2==team2),]
           resulPronostico <- rowPronostico$"1X2"
         }
-        dfQuiniela[i,]$Pronostico <- resulPronostico
-        
+
         if (i == 15) { ## Pleno al 15
+          
             gol1 <- round(as.numeric(rowPronostico$Gol1),digits = 0)
             gol2 <- round(as.numeric(rowPronostico$Gol2),digits = 0)
             if (gol1 > 2) {
@@ -338,13 +324,9 @@ getAciertosQuiniela <- function(dfQuiniela,dfPronostico) {
             if (gol2 > 2) {
                 gol2 <- "M"
             }
-            dfQuiniela[i,]$Pronostico <- paste0(gol1,"-",gol2)
+            resulPronostico <- paste0(gol1,"-",gol2)
         }
         
-        print(dfQuiniela[15,]$Pronostico)
-        print(resulPronostico)
-        print(result)
-        dfQuiniela[15,]$"1X2"
         if (length(resulPronostico) > 0) {
             if (result == resulPronostico) {
                 nAciertos <- nAciertos + 1

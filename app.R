@@ -24,7 +24,7 @@ Encoding(x) <- "latin1"
 
 source('Quiniela.R')
 source('Algorithm.R')
-source('laligafantasy.R',encoding = "latin1", local = TRUE)
+source('laligafantasy.R')
 
 #setwd("C:/Users/srevuelta/OneDrive/Documentos/BusinessIntelligence/Quiniela")
 bestValues <- read_rds("dfBestValues.rds")
@@ -62,7 +62,7 @@ body <- dashboardBody(
               ),
               fluidRow(
                   h4(paste("Success")),
-                  valueBoxOutput("AciertosQuiniela", width = 2)
+                  valueBoxOutput("aciertos_quiniela", width = 2)
               ),
               fluidRow(
                   h4(paste("Quiniela")),
@@ -77,45 +77,45 @@ body <- dashboardBody(
               ),
               fluidRow(
                   h4(paste("Media aciertos")),
-                  valueBoxOutput("AciertosMediaQuiniela", width = 2)
+                  valueBoxOutput("aciertos_media_quiniela", width = 2)
               ),
               fluidRow(
                   h4(paste("Tendencia aciertos")),
                   shinydashboard::box(plotOutput("quiniela_evolution"),width = 6)
-              ),
-              fluidRow(
-                  h4(paste("Tendencia signos")),
-                  shinydashboard::box(plotOutput("quiniela_distribution"),width = 6)
-              ),
-              fluidRow(
-                  h4(paste("Distribucion signos")),
-                  shinydashboard::box(plotOutput("quiniela_current_distribution"),width = 6)
-              ),
-              fluidRow(
-                h4(paste("Primera division prediccion")),
-                valueBoxOutput("AciertosPrimera", width = 2)
-              ),
-              fluidRow(
-                 shinydashboard::box(DT::dataTableOutput('match_table_first'))
-                ),
-              fluidRow(
-                  h4(paste("Segunda division prediccion")),
-                  valueBoxOutput("AciertosSegunda", width = 2)
-              ),
-              fluidRow(
-                  shinydashboard::box(DT::dataTableOutput('match_table_second'))
-              ),
-              fluidRow(
-                h4(paste("Prediccion detallada")),
-                valueBoxOutput("AciertosTotales", width = 2)
-              ),
-              fluidRow(
-                shinydashboard::box(DT::dataTableOutput('match_table_details'))
-                ),
-              fluidRow(
-                  h4(paste("Valores recomendados")),
-                  shinydashboard::box(DT::dataTableOutput('best_values'))
               )
+              # fluidRow(
+              #     h4(paste("Tendencia signos")),
+              #     shinydashboard::box(plotOutput("quiniela_distribution"),width = 6)
+              # ),
+              # fluidRow(
+              #     h4(paste("Distribucion signos")),
+              #     shinydashboard::box(plotOutput("quiniela_current_distribution"),width = 6)
+              # ),
+              # fluidRow(
+              #   h4(paste("Primera division prediccion")),
+              #   valueBoxOutput("AciertosPrimera", width = 2)
+              # ),
+              # fluidRow(
+              #    shinydashboard::box(DT::dataTableOutput('match_table_first'))
+              #   ),
+              # fluidRow(
+              #     h4(paste("Segunda division prediccion")),
+              #     valueBoxOutput("AciertosSegunda", width = 2)
+              # ),
+              # fluidRow(
+              #     shinydashboard::box(DT::dataTableOutput('match_table_second'))
+              # ),
+              # fluidRow(
+              #   h4(paste("Prediccion detallada")),
+              #   valueBoxOutput("AciertosTotales", width = 2)
+              # ),
+              # fluidRow(
+              #   shinydashboard::box(DT::dataTableOutput('match_table_details'))
+              #   ),
+              # fluidRow(
+              #     h4(paste("Valores recomendados")),
+              #     shinydashboard::box(DT::dataTableOutput('best_values'))
+              # )
   ))
 )
 
@@ -125,7 +125,7 @@ ui <- dashboardPage(header, sidebar, body)
 # 8. Server ----
 server <- function(input, output, session) {
   
-    output$AciertosQuiniela <- renderValueBox({
+    output$aciertos_quiniela <- renderValueBox({
         
         pos <- match(input$jornada_primera,jornadas_date[[4]])
         jp <- jornadas_date[[1]][[pos]]
@@ -151,7 +151,7 @@ server <- function(input, output, session) {
             dfPrimera <- getDFPronostico("primera",jp,10,local_weight,racha_weight,diff,racha_back,rest_factor,injury_factor) 
             dfSegunda <- getDFPronostico("segunda",js,11,local_weight,racha_weight,diff,racha_back,rest_factor,injury_factor) 
         }
-        df <- getAciertos(dfQuiniela,rbind(dfPrimera,dfSegunda))
+        df <- getAciertosQuiniela(dfQuiniela,rbind(dfPrimera,dfSegunda))
         
         valueBox(
             sum(df$OK), paste("Aciertos Totales",sum(df$OK),"de 15"), icon = icon("thumbs-up", lib = "glyphicon"),
@@ -352,7 +352,7 @@ server <- function(input, output, session) {
               geom_label(aes(label = Freq))
           
       })
-      output$AciertosMediaQuiniela <- renderValueBox({
+      output$aciertos_media_quiniela <- renderValueBox({
           
           pos <- match(input$jornada_primera,jornadas_date[[4]])
           jp <- jornadas_date[[1]][[pos]]

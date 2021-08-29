@@ -79,59 +79,7 @@ getFilteredBestValueDf <- function(df) {
     df
 }
 
-generateBestValues <- function(){
-    
-    dfBestValues <- data.frame(matrix(nrow = 0, ncol = 7))
-    colnames(dfBestValues) <- c("JPri","JSeg","AT","DIFF","RC","RB","RF")
-    counter <- 0
-    jornadas_date <- as.list(read_csv("Jornada.csv"))
-    for (i in 1:length(jornadas_date$JPri)) {
-        
-        date <- as.Date(jornadas_date$Date[i],format = "%d-%m-%Y")
-        if (date < as.Date(now())) {
-            jp <- jornadas_date$JPri[i]
-            js <- jornadas_date$JSeg[i]
-            jq <- jornadas_date$JQ[i]
-            dfQuiniela <- getQuinielaCombinacionGanadora(jq) 
-            dfQuiniela <- dfQuiniela %>%
-                convertNames()
-            print(paste("Calculating OK for","jornada",jp))
-            #for (j in seq(0,1,by=0.1)) {
-                local_weight <- 1
-                for (k in seq(0,1,by=0.2)) {
-                    racha_weight <- k
-                    for (l in seq(0.2,1,by=0.2)) {
-                        diff <- l
-                        for (m in seq(3,6,by=1)) {
-                            racha_back <- m
-                            for (n in seq(0,1,by=0.2)) { 
-                                counter <- counter + 1
-                                rest_factor <- n
-                                
-                                dfPrimera <- getDFPronostico("primera",jp,10,local_weight,racha_weight,diff,racha_back,rest_factor) 
-                                dfSegunda <- getDFPronostico("segunda",js,11,local_weight,racha_weight,diff,racha_back,rest_factor) 
 
-                                dfPronosticos <- rbind(dfPrimera,dfSegunda)
-                                
-                                df <- getAciertosQuiniela(dfQuiniela,dfPronosticos)
-
-                                dfBestValues[counter,]$JPri <- jp
-                                dfBestValues[counter,]$JSeg <- js
-                                dfBestValues[counter,]$AT <- sum(df$OK)
-                                dfBestValues[counter,]$RC <- racha_weight
-                                dfBestValues[counter,]$DIFF <- diff
-                                dfBestValues[counter,]$RB <- racha_back
-                                dfBestValues[counter,]$RF <- rest_factor
-                            }
-                        }
-                    }
-                }
-            }
-        #}
-    }
-    write_rds(dfBestValues,path = "dfBestValues.rds")
-    
-}
 
 sliderValues <- function (inputId, label, values, from, to = NULL, width = NULL) {
     sliderProps <- shiny:::dropNulls(list(class = "js-range-slider", 

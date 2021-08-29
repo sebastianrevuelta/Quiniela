@@ -4,11 +4,13 @@ getInjuries <- function(data) {
         mutate("Team1" = case_when(
             str_starts(Team1,"Ala") ~ "Alaves",
             str_starts(Team1,"Atl") ~ "Atletico de Madrid",
-            str_ends("Cadiz","iz") ~ "Cadiz")) %>%
+            str_ends(Team1,"iz") ~ "Cadiz",
+            TRUE ~ Team1)) %>%
         mutate("Team2" = case_when(
             str_starts(Team2,"Ala") ~ "Alaves",
             str_starts(Team2,"Atl") ~ "Atletico de Madrid",
-            str_ends("Cadiz","iz") ~ "Cadiz"))
+            str_ends(Team2,"iz") ~ "Cadiz",
+            TRUE ~ Team2))
 
     players_injured$counter <- 1
     players_injured <- players_injured %>%
@@ -67,3 +69,5 @@ getInjuries <- function(data) {
     
     data_aux
 }
+
+
