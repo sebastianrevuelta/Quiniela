@@ -36,7 +36,7 @@ injuryBestValue <- getBestValue(bestValues,"IN")
 rachaBackBestValue <-  round(getBestValue(bestValues,"RB"),digits = 0)
 jornadas_date <<- as.list(read_csv("Jornada.csv"))
 rest_info <<- as.data.frame(read_csv("Rest.csv"))
-first_list <- as.list(jornadas_date[[4]])[1:length(jornadas_date[[4]])]
+first_list <- as.list(jornadas_date[[4]])[length(jornadas_date[[4]]):1]
 jp <- jornadas_date[[1]][[length(jornadas_date[[4]])]]
 js <- jornadas_date[[2]][[length(jornadas_date[[4]])]]
 players_injured <<- as.data.frame(read_csv(str_glue("./laliga/players_jornada_",jp,".csv")))
@@ -82,7 +82,7 @@ body <- dashboardBody(
               fluidRow(
                   h4(paste("Tendencia aciertos")),
                   shinydashboard::box(plotOutput("quiniela_evolution"),width = 6)
-              )
+              ),
               # fluidRow(
               #     h4(paste("Tendencia signos")),
               #     shinydashboard::box(plotOutput("quiniela_distribution"),width = 6)
@@ -105,13 +105,10 @@ body <- dashboardBody(
               # fluidRow(
               #     shinydashboard::box(DT::dataTableOutput('match_table_second'))
               # ),
-              # fluidRow(
-              #   h4(paste("Prediccion detallada")),
-              #   valueBoxOutput("AciertosTotales", width = 2)
-              # ),
-              # fluidRow(
-              #   shinydashboard::box(DT::dataTableOutput('match_table_details'))
-              #   ),
+               fluidRow(
+                 h4(paste("Prediccion detallada")),
+                 shinydashboard::box(DT::dataTableOutput('match_table_details'))
+              )
               # fluidRow(
               #     h4(paste("Valores recomendados")),
               #     shinydashboard::box(DT::dataTableOutput('best_values'))

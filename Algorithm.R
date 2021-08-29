@@ -81,7 +81,7 @@ getResults <- function(category,jornada,totalTeams,local_coef,racha_coef,diff,ra
             Difference >= diff ~ "1",
             Difference < diff & Difference > -diff ~ "X",
             TRUE ~ "2")) %>%
-        select(Team1,Team2,GoalTeam1,GoalTeam2,Team1_scoreRacha,Team2_scoreRacha,FinalGoal1,FinalGoal2,Team1_injuryScore,Team2_injuryScore,Difference,Quiniela)    
+        select(Team1,Team2,GoalTeam1,GoalTeam2,Team1_scoreRacha,Team2_scoreRacha,Team1_injuryScore,Team2_injuryScore,FinalGoal1,FinalGoal2,Difference,Quiniela)    
     
     
     summary
@@ -312,6 +312,7 @@ getAciertosQuiniela <- function(dfQuiniela,dfPronostico) {
         else {
           rowPronostico <- dfPronostico[which(dfPronostico$Team1==team1 | dfPronostico$Team2==team2),]
           resulPronostico <- rowPronostico$"1X2"
+          dfQuiniela[i,]$Pronostico <- resulPronostico
         }
 
         if (i == 15) { ## Pleno al 15
@@ -325,7 +326,10 @@ getAciertosQuiniela <- function(dfQuiniela,dfPronostico) {
                 gol2 <- "M"
             }
             resulPronostico <- paste0(gol1,"-",gol2)
+            dfQuiniela[i,]$Pronostico <- resulPronostico
+           
         }
+        
         
         if (length(resulPronostico) > 0) {
             if (result == resulPronostico) {
